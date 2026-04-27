@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>いーくら</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c9a84c;
+    --accent2: #e8c97a;
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --green: #4caf82;
+    --red: #e05c5c;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: env(safe-area-inset-top, 12px) 20px 12px;
+    background: rgba(10,10,10,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .logo span { color: var(--text3); font-size: 11px; display: block; letter-spacing: 0.1em; margin-top: -2px; }
+  .history-btn {
+    width: 38px; height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    padding-top: calc(env(safe-area-inset-top, 12px) + 70px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── CAMERA SCREEN ── */
+  .camera-area {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  #video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .camera-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px;
+  }
+  .camera-guide {
+    width: 70%; aspect-ratio: 1;
+    border: 2px solid rgba(201,168,76,0.5);
+    border-radius: 12px;
+    position: relative;
+  }
+  .camera-guide::before, .camera-guide::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .camera-guide::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+  .camera-guide::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+  #canvas { display: none; }
+
+  .preview-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  .camera-placeholder {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; color: var(--text3);
+  }
+  .camera-placeholder .icon { font-size: 48px; opacity: 0.5; }
+  .camera-placeholder p { font-size: 13px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%; padding: 16px;
+    border-radius: 12px; border: none;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0a0a;
+  }
+  .btn-primary:active { transform: scale(0.97); background: var(--accent2); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:active { transform: scale(0.97); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .btn-row .btn { flex: 1; }
+
+  /* ── ANALYZE BTN (circle) ── */
+  .analyze-wrap {
+    display: flex; justify-content: center;
+    margin: 8px 0 16px;
+  }
+  .analyze-btn {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 0 0 6px rgba(201,168,76,0.15);
+    transition: all 0.2s;
+  }
+  .analyze-btn:active { transform: scale(0.93); }
+  .analyze-btn:disabled { background: var(--surface2); box-shadow: none; }
+
+  /* ── LOADING ── */
+  .loading-wrap {
+    text-align: center; padding: 40px 20px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text2); font-size: 14px; }
+  .loading-sub  { color: var(--text3); font-size: 12px; margin-top: 6px; }
+
+  /* ── RESULT SCREEN ── */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .result-label {
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--accent); text-transform: uppercase;
+    margin-bottom: 6px; font-family: 'DM Mono', monospace;
+  }
+  .result-title {
+    font-size: 20px; font-weight: 700;
+    color: var(--text); line-height: 1.3;
+  }
+  .result-sub {
+    font-size: 13px; color: var(--text2); margin-top: 4px;
+  }
+  .result-thumb {
+    width: 80px; height: 80px;
+    border-radius: 10px; object-fit: cover;
+    border: 1px solid var(--border);
+    float: right; margin-left: 12px;
+  }
+
+  .price-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-bottom: 14px;
+  }
+  .price-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .price-card.highlight {
+    border-color: var(--accent);
+    background: rgba(201,168,76,0.05);
+  }
+  .price-label {
+    font-size: 10px; letter-spacing: 0.12em;
+    color: var(--text3); text-transform: uppercase;
+    font-family: 'DM Mono', monospace; margin-bottom: 6px;
+  }
+  .price-value {
+    font-size: 22px; font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+  }
+  .price-value.green { color: var(--green); }
+  .price-range {
+    font-size: 11px; color: var(--text3);
+    margin-top: 3px; font-family: 'DM Mono', monospace;
+  }
+
+  /* ── EDIT FIELDS ── */
+  .field-group { margin-bottom: 14px; }
+  .field-label {
+    font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text3); text-transform: uppercase;
+    margin-bottom: 6px; font-family: 'DM Mono', monospace;
+  }
+  .field-input {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text); font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .field-select {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text); font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none; appearance: none;
+  }
+
+  /* ── CONFIRM SCREEN ── */
+  .confirm-img {
+    width: 100%; aspect-ratio: 4/3;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── HISTORY ── */
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex; gap: 12px; align-items: center;
+  }
+  .history-thumb {
+    width: 56px; height: 56px;
+    border-radius: 8px; object-fit: cover;
+    border: 1px solid var(--border);
+    flex-shrink: 0; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .history-info { flex: 1; min-width: 0; }
+  .history-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .history-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px; color: var(--accent);
+    font-weight: 500; white-space: nowrap;
+  }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  .section-title {
+    font-size: 12px; letter-spacing: 0.15em;
+    color: var(--text3); text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px; margin-top: 4px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 10px 20px;
+    font-size: 13px; color: var(--text);
+    transition: transform 0.3s; z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">いーくら<span>BRAND PRICE CHECKER</span></div>
+  <div class="history-btn" onclick="showHistory()">📋</div>
+</div>
+
+<div class="main">
+
+  <!-- ① カメラ画面 -->
+  <div class="screen active" id="screen-camera">
+    <div class="camera-area" id="camera-area">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div id="camera-placeholder" class="camera-placeholder">
+        <div class="icon">📷</div>
+        <p>カメラを起動するか<br>写真を選択してください</p>
+      </div>
+      <img id="preview" class="preview-img" style="display:none; position:absolute; inset:0;">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="startCamera()">📷 カメラ</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">🖼 写真選択</button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" onchange="onFileSelect(event)">
+
+    <div class="analyze-wrap">
+      <button class="analyze-btn" id="analyze-btn" onclick="analyze()" disabled title="解析">🔍</button>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">補助入力（任意）</div>
+      <input class="field-input" id="hint-input" type="text" placeholder="型番・商品名のヒント">
+    </div>
+  </div>
+
+  <!-- ② 解析中 -->
+  <div class="screen" id="screen-loading">
+    <div class="loading-wrap" style="margin-top: 60px;">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Claude が画像を解析中...</div>
+      <div class="loading-sub" id="loading-sub">ブランド・商品名を特定しています</div>
+    </div>
+  </div>
+
+  <!-- ③ 確認画面 -->
+  <div class="screen" id="screen-confirm">
+    <div class="section-title">これですか？</div>
+    <img id="confirm-img" class="confirm-img">
+    <div class="result-card" id="confirm-card">
+      <div class="result-label">Claude の判定</div>
+      <div class="result-title" id="confirm-name">-</div>
+      <div class="result-sub" id="confirm-line">-</div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">ブランド</div>
+      <input class="field-input" id="edit-brand" type="text">
+    </div>
+    <div class="field-group">
+      <div class="field-label">商品名</div>
+      <input class="field-input" id="edit-name" type="text">
+    </div>
+    <div class="field-group">
+      <div class="field-label">ライン</div>
+      <input class="field-input" id="edit-line" type="text">
+    </div>
+    <div class="field-group">
+      <div class="field-label">ランク</div>
+      <select class="field-select" id="edit-condition">
+        <option value="S">S - 未使用</option>
+        <option value="A" selected>A - 極美品</option>
+        <option value="B">B - 美品</option>
+        <option value="C">C - 良品</option>
+        <option value="D">D - 使用感あり</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" onclick="searchPrice()" style="margin-bottom:10px;">💴 相場を調べる</button>
+    <button class="btn btn-ghost" onclick="showScreen('screen-camera')">← 撮り直す</button>
+  </div>
+
+  <!-- ④ 結果画面 -->
+  <div class="screen" id="screen-result">
+    <div class="section-title">相場結果</div>
+
+    <div class="result-card">
+      <img id="result-thumb" class="result-thumb" src="" style="display:none">
+      <div class="result-label" id="result-brand-label">BRAND</div>
+      <div class="result-title" id="result-name">-</div>
+      <div class="result-sub" id="result-line">-</div>
+      <div style="clear:both"></div>
+    </div>
+
+    <div class="price-grid">
+      <div class="price-card highlight">
+        <div class="price-label">楽天 相場</div>
+        <div class="price-value" id="price-trim">-</div>
+        <div class="price-range" id="price-range">-</div>
+      </div>
+      <div class="price-card">
+        <div class="price-label">件数</div>
+        <div class="price-value green" id="price-count">-</div>
+        <div class="price-range" id="price-date">楽天市場</div>
+      </div>
+    </div>
+
+    <div class="result-card" id="rakuten-items-card" style="display:none">
+      <div class="result-label">参考出品</div>
+      <div id="rakuten-items"></div>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveItem()" style="margin-bottom:10px;">💾 保存する</button>
+    <button class="btn btn-secondary" onclick="showScreen('screen-confirm')" style="margin-bottom:10px;">← 商品情報を修正</button>
+    <button class="btn btn-ghost" onclick="resetAll()">🔄 新しく調べる</button>
+  </div>
+
+  <!-- ⑤ 履歴画面 -->
+  <div class="screen" id="screen-history">
+    <div class="section-title">調査履歴</div>
+    <div id="history-list"></div>
+    <button class="btn btn-ghost" onclick="showScreen('screen-camera')" style="margin-top:8px;">← 戻る</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────
+const SUPABASE_URL  = 'https://bxvksylspzkzepekblre.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4dmtzeWxzcHpremVwZWtibHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzUyOTksImV4cCI6MjA5Mjg1MTI5OX0.i-DyP7JozjzuAUYmVeuJIqFaTKRnBNlKbARiZFDcqxY';
+const CLAUDE_MODEL  = 'claude-sonnet-4-20250514';
+const RAKUTEN_APP_ID = 'bc4b11f5-d234-4fd8-b048-172beec04700';
+
+// ── STATE ─────────────────────────────────────────────
+let currentImageBase64 = null;
+let currentItem = {};
+let videoStream = null;
+
+// ── SCREEN ────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── CAMERA ────────────────────────────────────────────
+async function startCamera() {
+  try {
+    if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }
+    });
+    videoStream = stream;
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    video.style.display = 'block';
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('camera-placeholder').style.display = 'none';
+    document.getElementById('analyze-btn').disabled = false;
+
+    // シャッター：タップで撮影
+    video.onclick = captureFromVideo;
+  } catch(e) {
+    showToast('カメラを起動できませんでした');
+  }
+}
+
+function captureFromVideo() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  currentImageBase64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+  const preview = document.getElementById('preview');
+  preview.src = 'data:image/jpeg;base64,' + currentImageBase64;
+  preview.style.display = 'block';
+  video.style.display = 'none';
+  if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+  showToast('📸 撮影しました。解析ボタンを押してください');
+}
+
+function onFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const base64 = e.target.result.split(',')[1];
+    currentImageBase64 = base64;
+    const preview = document.getElementById('preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('camera-placeholder').style.display = 'none';
+    document.getElementById('video').style.display = 'none';
+    document.getElementById('analyze-btn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── CLAUDE ANALYZE ────────────────────────────────────
+async function analyze() {
+  if (!currentImageBase64) return;
+  showScreen('screen-loading');
+
+  const hint = document.getElementById('hint-input').value;
+  const prompt = `この画像のブランド品を特定してください。
+${hint ? `ヒント: ${hint}` : ''}
+
+以下のJSON形式のみで返答してください（マークダウン不要）:
+{
+  "brand": "ブランド名（例: LOUIS VUITTON）",
+  "brand_ja": "日本語ブランド名（例: ルイヴィトン）",
+  "name": "商品名（例: ネヴァーフル MM）",
+  "line": "ライン/素材（例: モノグラム）",
+  "search_keyword": "楽天検索用キーワード（例: ルイヴィトン ネヴァーフル MM モノグラム）",
+  "confidence": "high/medium/low"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: currentImageBase64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const item = JSON.parse(clean);
+
+    currentItem = { ...item, imageBase64: currentImageBase64 };
+
+    // 確認画面にセット
+    document.getElementById('confirm-img').src = 'data:image/jpeg;base64,' + currentImageBase64;
+    document.getElementById('confirm-name').textContent = `${item.brand_ja || item.brand} ${item.name}`;
+    document.getElementById('confirm-line').textContent = item.line || '';
+    document.getElementById('edit-brand').value = item.brand_ja || item.brand || '';
+    document.getElementById('edit-name').value = item.name || '';
+    document.getElementById('edit-line').value = item.line || '';
+
+    showScreen('screen-confirm');
+  } catch(e) {
+    showToast('解析に失敗しました。もう一度お試しください。');
+    showScreen('screen-camera');
+  }
+}
+
+// ── RAKUTEN SEARCH ────────────────────────────────────
+async function searchPrice() {
+  // 編集値を反映
+  currentItem.brand_ja = document.getElementById('edit-brand').value;
+  currentItem.name     = document.getElementById('edit-name').value;
+  currentItem.line     = document.getElementById('edit-line').value;
+  currentItem.condition = document.getElementById('edit-condition').value;
+
+  showScreen('screen-loading');
+  document.getElementById('loading-text').textContent = '楽天市場で相場を検索中...';
+  document.getElementById('loading-sub').textContent = currentItem.brand_ja + ' ' + currentItem.name;
+
+  const keyword = encodeURIComponent(
+    (currentItem.search_keyword || `${currentItem.brand_ja} ${currentItem.name} ${currentItem.line}`).trim()
+  );
+
+  try {
+    // 楽天APIはCORSがあるのでプロキシ経由 or 直接
+    const url = `https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706?format=json&keyword=${keyword}&applicationId=${RAKUTEN_APP_ID}&hits=30&sort=-reviewCount&genreId=101240`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.Items || data.Items.length === 0) {
+      showToast('楽天で該当商品が見つかりませんでした');
+      showScreen('screen-confirm');
+      return;
+    }
+
+    const prices = data.Items.map(i => i.Item.itemPrice).sort((a,b) => a-b);
+    const trimCount = Math.floor(prices.length * 0.1);
+    const trimmed = prices.slice(trimCount, prices.length - trimCount);
+    const trimAvg = Math.round(trimmed.reduce((a,b) => a+b, 0) / trimmed.length);
+    const min = prices[0];
+    const max = prices[prices.length - 1];
+
+    currentItem.rakuten_min = min;
+    currentItem.rakuten_max = max;
+    currentItem.rakuten_avg = Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
+    currentItem.rakuten_trim_avg = trimAvg;
+    currentItem.rakuten_count = prices.length;
+
+    // 結果表示
+    document.getElementById('result-brand-label').textContent = currentItem.brand_ja || currentItem.brand || 'BRAND';
+    document.getElementById('result-name').textContent = currentItem.name;
+    document.getElementById('result-line').textContent = [currentItem.line, currentItem.condition].filter(Boolean).join(' · ');
+    document.getElementById('price-trim').textContent  = '¥' + trimAvg.toLocaleString();
+    document.getElementById('price-range').textContent = `¥${min.toLocaleString()} - ¥${max.toLocaleString()}`;
+    document.getElementById('price-count').textContent = prices.length + '件';
+
+    if (currentItem.imageBase64) {
+      const thumb = document.getElementById('result-thumb');
+      thumb.src = 'data:image/jpeg;base64,' + currentItem.imageBase64;
+      thumb.style.display = 'block';
+    }
+
+    // 参考出品（上位5件）
+    const itemsHtml = data.Items.slice(0,5).map(i => `
+      <div style="display:flex; gap:10px; align-items:center; padding: 8px 0; border-bottom: 1px solid var(--border);">
+        <img src="${i.Item.mediumImageUrls?.[0]?.imageUrl || ''}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i.Item.itemName}</div>
+          <div style="font-size:14px;font-family:'DM Mono',monospace;color:var(--accent);margin-top:2px;">¥${i.Item.itemPrice.toLocaleString()}</div>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('rakuten-items').innerHTML = itemsHtml;
+    document.getElementById('rakuten-items-card').style.display = 'block';
+
+    showScreen('screen-result');
+  } catch(e) {
+    showToast('楽天APIエラー。アプリIDを確認してください。');
+    showScreen('screen-confirm');
+  }
+}
+
+// ── SAVE TO SUPABASE ──────────────────────────────────
+async function saveItem() {
+  try {
+    const payload = {
+      brand:             currentItem.brand_ja || currentItem.brand,
+      name:              currentItem.name,
+      line:              currentItem.line,
+      condition:         currentItem.condition,
+      rakuten_min:       currentItem.rakuten_min,
+      rakuten_max:       currentItem.rakuten_max,
+      rakuten_avg:       currentItem.rakuten_avg,
+      rakuten_trim_avg:  currentItem.rakuten_trim_avg,
+      memo:              currentItem.search_keyword,
+    };
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      showToast('✅ 保存しました');
+      // ローカルにも保存
+      const history = JSON.parse(localStorage.getItem('ikura_history') || '[]');
+      history.unshift({ ...payload, created_at: new Date().toISOString() });
+      localStorage.setItem('ikura_history', JSON.stringify(history.slice(0, 100)));
+    } else {
+      showToast('保存に失敗しました');
+    }
+  } catch(e) {
+    showToast('保存エラー');
+  }
+}
+
+// ── HISTORY ───────────────────────────────────────────
+function showHistory() {
+  const history = JSON.parse(localStorage.getItem('ikura_history') || '[]');
+  const list = document.getElementById('history-list');
+
+  if (history.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>まだ履歴がありません</p></div>`;
+  } else {
+    list.innerHTML = history.map(item => `
+      <div class="history-item">
+        <div class="history-thumb">👜</div>
+        <div class="history-info">
+          <div class="history-name">${item.brand || ''} ${item.name || ''}</div>
+          <div class="history-meta">${item.line || ''} · ${item.condition || ''} · ${item.created_at ? new Date(item.created_at).toLocaleDateString('ja-JP') : ''}</div>
+        </div>
+        <div class="history-price">${item.rakuten_trim_avg ? '¥' + item.rakuten_trim_avg.toLocaleString() : '-'}</div>
+      </div>
+    `).join('');
+  }
+  showScreen('screen-history');
+}
+
+// ── RESET ─────────────────────────────────────────────
+function resetAll() {
+  currentImageBase64 = null;
+  currentItem = {};
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('video').style.display = 'none';
+  document.getElementById('camera-placeholder').style.display = 'flex';
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('hint-input').value = '';
+  document.getElementById('loading-text').textContent = 'Claude が画像を解析中...';
+  document.getElementById('loading-sub').textContent  = 'ブランド・商品名を特定しています';
+  showScreen('screen-camera');
+}
+</script>
+</body>
+</html>
